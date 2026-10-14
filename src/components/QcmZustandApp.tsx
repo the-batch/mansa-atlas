@@ -1,8 +1,13 @@
 import React from 'react';
 import { archetypeProfiles } from '../data/questions';
 import { useQcmStore } from '../store/qcmZustandStore';
+import { type ParticipantDetails } from '../types/participant';
 
-export const QcmZustandApp: React.FC = () => {
+interface QcmZustandAppProps {
+    participant: ParticipantDetails;
+}
+
+export const QcmZustandApp: React.FC<QcmZustandAppProps> = ({ participant }) => {
     const {
         questions,
         currentIndex,
@@ -21,12 +26,26 @@ export const QcmZustandApp: React.FC = () => {
         return (
             <section className="quiz-panel result-panel" aria-live="polite">
                 <p className="eyebrow"><span className="eyebrow-line" /> VOTRE RÉSULTAT</p>
-                <div className="result-score" aria-label={`Archétype : ${profile.name}`}>
-                    <span>{profile.name}</span>
+                <div className="result-profile">
+                    <img className="result-image" src={profile.image} alt={`Illustration de l’archétype ${profile.name}`} />
+                    <div className="result-details">
+                        <div className="result-score" aria-label={`Archétype : ${profile.name}`}>
+                            <span>{profile.name}</span>
+                        </div>
+                        <h1 className="result-title">Votre archétype<span className="accent-period">.</span></h1>
+                        <p className="result-copy">{profile.description}</p>
+                        <p className="result-copy">{profile.challenge}</p>
+                        <div className="report-offer">
+                            <p className="report-offer-title">Recevoir votre rapport complet</p>
+                            <p className="report-offer-copy">
+                                Une analyse plus détaillée pourra être envoyée à <strong>{participant.email}</strong>.
+                            </p>
+                            <button className="report-button" disabled type="button">
+                                Envoi par e-mail bientôt disponible
+                            </button>
+                        </div>
+                    </div>
                 </div>
-                <h1 className="result-title">Votre archétype<span className="accent-period">.</span></h1>
-                <p className="result-copy">{profile.description}</p>
-                <p className="result-copy">{profile.challenge}</p>
                 <button className="restart-button" onClick={resetQuiz}>
                     <span>Recommencer le diagnostic</span>
                     <span className="button-arrow" aria-hidden="true">↗</span>

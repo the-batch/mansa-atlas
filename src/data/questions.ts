@@ -1,30 +1,35 @@
 import { type Archetype, type Question } from '../types/qcm';
 
-export const archetypeProfiles: Record<Archetype, { name: string; description: string; challenge: string }> = {
+export const archetypeProfiles: Record<Archetype, { name: string; description: string; challenge: string; image: string }> = {
     createur: {
         name: 'Le Créateur',
         description: 'Votre activité ou votre entreprise joue un rôle important dans la richesse que vous construisez.',
-        challenge: 'Votre force est aussi votre principale fragilité : pensez à diversifier ce que votre activité a permis de bâtir.'
+        challenge: 'Votre force est aussi votre principale fragilité : pensez à diversifier ce que votre activité a permis de bâtir.',
+        image: '/Le%20createur.jpg'
     },
     visionnaire: {
         name: 'La Visionnaire',
         description: 'Vous avez une capacité à épargner ou du capital à faire avancer, et vous cherchez à lui donner une direction.',
-        challenge: 'Votre argent peut avancer davantage avec une stratégie claire, alignée sur vos projets.'
+        challenge: 'Votre argent peut avancer davantage avec une stratégie claire, alignée sur vos projets.',
+        image: '/La%20visionnaire.jpg'
     },
     passeur: {
         name: 'Le Passeur',
         description: 'Vous avez construit un patrimoine et réfléchissez à la manière de l’organiser pour qu’il dure.',
-        challenge: 'Vous avez construit. Reste à organiser ce qui doit durer et se transmettre.'
+        challenge: 'Vous avez construit. Reste à organiser ce qui doit durer et se transmettre.',
+        image: '/Le%20passeur.jpg'
     },
     continuateur: {
         name: 'Le Continuateur',
         description: 'Vous avez reçu ou repris un patrimoine et souhaitez le comprendre pour mieux le piloter.',
-        challenge: 'Recevoir un patrimoine et le piloter sont deux métiers différents.'
+        challenge: 'Recevoir un patrimoine et le piloter sont deux métiers différents.',
+        image: '/Le%20continuateur.jpg'
     },
     semeur: {
         name: 'Le Semeur',
         description: 'Votre patrimoine est en construction et votre temps est un atout précieux pour préparer la suite.',
-        challenge: 'Votre principal capital n’est peut-être pas encore votre argent. C’est votre temps.'
+        challenge: 'Votre principal capital n’est peut-être pas encore votre argent. C’est votre temps.',
+        image: '/Le%20semeur.jpg'
     }
 };
 
