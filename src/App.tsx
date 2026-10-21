@@ -11,6 +11,21 @@ function App() {
   const [globeTexture, setGlobeTexture] = useState<HTMLImageElement | null>(null)
   const [participant, setParticipant] = useState<ParticipantDetails | null>(null)
 
+  const saveParticipantAndStartQuiz = async (details: ParticipantDetails) => {
+    const response = await fetch('/api/participants', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(details)
+    })
+
+    if (!response.ok) {
+      const result = await response.json().catch(() => null) as { error?: string } | null
+      throw new Error(result?.error ?? 'Impossible d’enregistrer le formulaire. Veuillez réessayer.')
+    }
+
+    setParticipant(details)
+  }
+
   if (!hasStarted) {
     return (
       <main className="home-hero">
@@ -54,7 +69,7 @@ function App() {
       <div id="top" className="page-content">
         {participant
           ? <QcmZustandApp participant={participant} />
-          : <ParticipantForm onSubmit={setParticipant} />}
+          : <ParticipantForm onSubmit={saveParticipantAndStartQuiz} />}
       </div>
       <footer className="page-footer">
         <span>MANSA CAPITAL <span className="footer-separator">/</span> L’ATLAS</span>

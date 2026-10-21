@@ -1,75 +1,15 @@
-# React + TypeScript + Vite
+# Mansa Capital — L’Atlas
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+## Démarrage
 
-Currently, two official plugins are available:
+- `npm run dev` démarre l’application et son serveur API en mode développement.
+- `npm run build` construit l’application et le serveur.
+- `npm start` démarre le serveur de production après le build.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+Le serveur écoute sur le port `3000` par défaut. La variable d’environnement `PORT` permet de le modifier.
 
-## React Compiler
+## Fichiers des formulaires
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+À la validation du profil, le serveur vérifie les données puis crée un fichier CSV unique dans le dossier `csv/` à la racine du projet. Le questionnaire ne démarre qu’après l’enregistrement réussi. Ce dossier n’est pas servi par l’application et est exclu du contrôle de version.
 
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
-```
-
-You can also install [eslint-plugin-react-x](https://npmx.dev/package/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://npmx.dev/package/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
-```
+Les fichiers contiennent des données personnelles et patrimoniales. En production, utilisez un stockage serveur persistant et restreignez l’accès système au dossier `csv/`; ce répertoire doit être sauvegardé et géré selon la politique de conservation applicable.
