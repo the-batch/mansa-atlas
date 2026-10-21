@@ -4,9 +4,10 @@ const requiredText = (label: string) =>
     z.string().trim().min(1, { error: `Veuillez renseigner ${label}.` });
 
 const optionalSelection = (label: string, options: string[]) =>
-    z.string().refine((value) => value === '' || options.includes(value), {
-        error: `Veuillez sélectionner ${label}.`
-    });
+    z.string().default('').refine(
+        (value) => value === '' || options.includes(value),
+        { error: `Veuillez sélectionner ${label}.` }
+    );
 
 const phonePattern = /^\+?[0-9\s().-]{7,20}$/;
 const investmentGoalOptions = [
@@ -25,12 +26,12 @@ export const participantSchema = z.object({
         'Autre',
         'Préfère ne pas répondre'
     ]),
-    nationality: z.string().trim(),
-    phone: z.string().trim().refine(
+    nationality: z.string().trim().default(''),
+    phone: z.string().trim().default('').refine(
         (value) => value === '' || phonePattern.test(value),
         { error: 'Veuillez saisir un numéro de téléphone principal valide.' }
     ),
-    secondaryPhone: z.string().trim().refine(
+    secondaryPhone: z.string().trim().default('').refine(
         (value) => value === '' || phonePattern.test(value),
         { error: 'Veuillez saisir un numéro de téléphone secondaire valide.' }
     ),
@@ -45,7 +46,7 @@ export const participantSchema = z.object({
         'Veuf / veuve',
         'Autre'
     ]),
-    profession: z.string().trim(),
+    profession: z.string().trim().default(''),
     ageRange: optionalSelection('votre tranche d’âge', [
         'Moins de 25 ans',
         '25–34 ans',
@@ -60,7 +61,7 @@ export const participantSchema = z.object({
         'Supérieure à 15 000 000 et inférieure ou égale à 50 000 000 FCFA',
         'Supérieure à 50 000 000 FCFA'
     ]),
-    investmentGoals: z.array(z.string())
+    investmentGoals: z.array(z.string()).default([])
         .refine(
             (goals) => goals.every((goal) => investmentGoalOptions.includes(goal)),
             { error: 'Veuillez sélectionner des objectifs de placement valides.' }
@@ -81,6 +82,14 @@ export const participantSchema = z.object({
         'Trimestrielle',
         'Annuelle'
     ])
+});
+
+export const termsVersion = '2026-10-21';
+
+export const participantSubmissionSchema = z.object({
+    participant: participantSchema,
+    termsAccepted: z.literal(true),
+    termsVersion: z.literal(termsVersion)
 });
 
 export type ParticipantDetails = z.infer<typeof participantSchema>;

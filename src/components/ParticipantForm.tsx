@@ -1,8 +1,9 @@
 import { type FormEvent, useState } from 'react';
+import { m } from 'framer-motion';
 import { participantSchema, type ParticipantDetails } from '../types/participant';
 
 interface ParticipantFormProps {
-    onSubmit: (details: ParticipantDetails) => Promise<void>;
+    onSubmit: (details: ParticipantDetails) => void;
 }
 
 const investmentGoalOptions = [
@@ -14,8 +15,6 @@ const investmentGoalOptions = [
 
 export const ParticipantForm = ({ onSubmit }: ParticipantFormProps) => {
     const [errors, setErrors] = useState<Partial<Record<keyof ParticipantDetails, string>>>({});
-    const [submissionError, setSubmissionError] = useState('');
-    const [isSubmitting, setIsSubmitting] = useState(false);
     const [details, setDetails] = useState<ParticipantDetails>({
         firstName: '',
         lastName: '',
@@ -34,9 +33,8 @@ export const ParticipantForm = ({ onSubmit }: ParticipantFormProps) => {
         investmentFrequency: ''
     });
 
-    const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
-        setSubmissionError('');
         const result = participantSchema.safeParse(details);
         if (!result.success) {
             const nextErrors: Partial<Record<keyof ParticipantDetails, string>> = {};
@@ -58,17 +56,7 @@ export const ParticipantForm = ({ onSubmit }: ParticipantFormProps) => {
             return;
         }
         setErrors({});
-        setIsSubmitting(true);
-        try {
-            await onSubmit(result.data);
-        } catch (error) {
-            setSubmissionError(
-                error instanceof Error
-                    ? error.message
-                    : 'Impossible d’enregistrer le formulaire. Veuillez réessayer.'
-            );
-            setIsSubmitting(false);
-        }
+        onSubmit(result.data);
     };
 
     const updateField = (field: keyof ParticipantDetails, value: string) => {
@@ -99,7 +87,14 @@ export const ParticipantForm = ({ onSubmit }: ParticipantFormProps) => {
     });
 
     return (
-        <section className="quiz-panel participant-panel" aria-labelledby="participant-title">
+        <m.section
+            animate={{ opacity: 1, y: 0 }}
+            className="quiz-panel participant-panel"
+            exit={{ opacity: 0, y: -10 }}
+            initial={{ opacity: 0, y: 16 }}
+            transition={{ duration: 0.4, ease: 'easeOut' }}
+            aria-labelledby="participant-title"
+        >
             <p className="eyebrow"><span className="eyebrow-line" /> AVANT DE COMMENCER</p>
             <h1 className="participant-title" id="participant-title">Mise à jour de votre profil<span className="accent-period">.</span></h1>
             <p className="participant-intro">
@@ -260,15 +255,19 @@ export const ParticipantForm = ({ onSubmit }: ParticipantFormProps) => {
                 </section>
 
                 <p className="participant-privacy">
-                    Vos informations seront transmises au serveur et enregistrées dans un fichier CSV distinct
-                    pour traitement ultérieur. Ce fichier n’est pas accessible depuis l’interface.
+                    Vos informations seront enregistrées sur le serveur après lecture et acceptation des conditions
+                    générales d’utilisation.
                 </p>
-                {submissionError && <p className="participant-submission-error" role="alert">{submissionError}</p>}
-                <button className="restart-button participant-submit" disabled={isSubmitting} type="submit">
-                    <span>{isSubmitting ? 'Enregistrement en cours…' : 'Commencer le diagnostic'}</span>
+                <m.button
+                    className="restart-button participant-submit"
+                    type="submit"
+                    whileHover={{ y: -2 }}
+                    whileTap={{ scale: 0.985 }}
+                >
+                    <span>Continuer vers les conditions d’utilisation</span>
                     <span className="button-arrow" aria-hidden="true">→</span>
-                </button>
+                </m.button>
             </form>
-        </section>
+        </m.section>
     );
 };

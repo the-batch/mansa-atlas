@@ -3,7 +3,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
 import { extname, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { participantSchema } from '../src/types/participant.js';
+import { participantSubmissionSchema } from '../src/types/participant.js';
 
 const projectRoot = resolve(fileURLToPath(new URL('../../', import.meta.url)));
 const csvDirectory = resolve(projectRoot, 'csv');
@@ -97,7 +97,7 @@ async function saveParticipant(request: IncomingMessage, response: ServerRespons
         return;
     }
 
-    const result = participantSchema.safeParse(payload);
+    const result = participantSubmissionSchema.safeParse(payload);
     if (!result.success) {
         sendJson(response, 400, {
             error: 'Veuillez corriger les informations du formulaire.',
@@ -109,12 +109,20 @@ async function saveParticipant(request: IncomingMessage, response: ServerRespons
         return;
     }
 
-    const participant = result.data;
+    const { participant } = result.data;
     const values = csvFields.map(([, field]) => {
         const value = participant[field];
         return Array.isArray(value) ? value.join(', ') : value;
     });
-    const contents = `\uFEFF${makeCsvRow(csvFields.map(([label]) => label))}\r\n${makeCsvRow(values)}\r\n`;
+    const acceptedAt = new Date().toISOString();
+    const headers = [
+        ...csvFields.map(([label]) => label),
+        'CGU acceptées',
+        'Version des CGU',
+        'Date et heure d’acceptation'
+    ];
+    const row = [...values, 'Oui', result.data.termsVersion, acceptedAt];
+    const contents = `\uFEFF${makeCsvRow(headers)}\r\n${makeCsvRow(row)}\r\n`;
     const filePath = resolve(csvDirectory, `participant-${randomUUID()}.csv`);
 
     try {
