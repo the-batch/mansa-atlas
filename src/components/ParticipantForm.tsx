@@ -96,7 +96,7 @@ export const ParticipantForm = ({ onSubmit }: ParticipantFormProps) => {
             aria-labelledby="participant-title"
         >
             <p className="eyebrow"><span className="eyebrow-line" /> AVANT DE COMMENCER</p>
-            <h1 className="participant-title" id="participant-title">Mise à jour de votre profil<span className="accent-period">.</span></h1>
+            <h1 className="participant-title" id="participant-title">Votre profil d’investisseur<span className="accent-period">.</span></h1>
             <p className="participant-intro">
                 Ces informations nous aident à adapter votre diagnostic à votre situation et à votre
                 expérience de l’investissement. Seuls le nom, les prénoms et l’adresse e-mail sont obligatoires.
