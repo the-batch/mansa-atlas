@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 
 interface InteractiveGlobeProps {
     textureImage: HTMLImageElement;
+    decorative?: boolean;
 }
 
 const vertexShader = `
@@ -64,7 +65,7 @@ function createShader(
     return shader;
 }
 
-export function InteractiveGlobe({ textureImage }: InteractiveGlobeProps) {
+export function InteractiveGlobe({ textureImage, decorative = false }: InteractiveGlobeProps) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
 
     useEffect(() => {
@@ -142,12 +143,12 @@ export function InteractiveGlobe({ textureImage }: InteractiveGlobeProps) {
             const resolutionLocation = gl.getUniformLocation(globeProgram, 'resolution');
 
             const draw = (time: number) => {
-                if (!reducedMotion && time - lastFrame < 1000 / 30) {
+                if (!reducedMotion && time - lastFrame < 1000 / 60) {
                     frameId = window.requestAnimationFrame(draw);
                     return;
                 }
                 lastFrame = time;
-                if (!dragging && !reducedMotion) rotation += 0.0018;
+                if (!dragging && !reducedMotion) rotation += 0.0009;
                 gl.uniform1f(rotationLocation, rotation);
                 gl.uniform1f(tiltLocation, tilt);
                 gl.uniform2f(resolutionLocation, canvas.width, canvas.height);
@@ -197,21 +198,25 @@ export function InteractiveGlobe({ textureImage }: InteractiveGlobeProps) {
                 renderOnce();
             };
 
-            canvas.addEventListener('pointerdown', handlePointerDown);
-            canvas.addEventListener('pointermove', handlePointerMove);
-            canvas.addEventListener('pointerup', handlePointerUp);
-            canvas.addEventListener('pointercancel', handlePointerUp);
-            canvas.addEventListener('keydown', handleKeyDown);
+            if (!decorative) {
+                canvas.addEventListener('pointerdown', handlePointerDown);
+                canvas.addEventListener('pointermove', handlePointerMove);
+                canvas.addEventListener('pointerup', handlePointerUp);
+                canvas.addEventListener('pointercancel', handlePointerUp);
+                canvas.addEventListener('keydown', handleKeyDown);
+            }
 
             renderOnce();
             return () => {
                 window.cancelAnimationFrame(frameId);
                 resizeObserver.disconnect();
-                canvas.removeEventListener('pointerdown', handlePointerDown);
-                canvas.removeEventListener('pointermove', handlePointerMove);
-                canvas.removeEventListener('pointerup', handlePointerUp);
-                canvas.removeEventListener('pointercancel', handlePointerUp);
-                canvas.removeEventListener('keydown', handleKeyDown);
+                if (!decorative) {
+                    canvas.removeEventListener('pointerdown', handlePointerDown);
+                    canvas.removeEventListener('pointermove', handlePointerMove);
+                    canvas.removeEventListener('pointerup', handlePointerUp);
+                    canvas.removeEventListener('pointercancel', handlePointerUp);
+                    canvas.removeEventListener('keydown', handleKeyDown);
+                }
                 gl.deleteBuffer(buffer);
                 if (program) gl.deleteProgram(program);
                 if (vertex) gl.deleteShader(vertex);
@@ -226,15 +231,18 @@ export function InteractiveGlobe({ textureImage }: InteractiveGlobeProps) {
             if (fragment) gl.deleteShader(fragment);
             if (texture) gl.deleteTexture(texture);
         }
-    }, [textureImage]);
+    }, [decorative, textureImage]);
 
     return (
         <canvas
-            aria-label="Globe interactif : faites-le glisser ou utilisez les flèches du clavier pour le faire tourner."
+            aria-hidden={decorative || undefined}
+            aria-label={decorative
+                ? undefined
+                : 'Globe interactif : faites-le glisser ou utilisez les flèches du clavier pour le faire tourner.'}
             className="interactive-globe"
             ref={canvasRef}
-            role="application"
-            tabIndex={0}
+            role={decorative ? undefined : 'application'}
+            tabIndex={decorative ? -1 : 0}
         />
     );
 }
