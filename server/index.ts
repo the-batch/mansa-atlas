@@ -1,9 +1,14 @@
-import { randomUUID } from 'node:crypto';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
 import { extname, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { participantSubmissionSchema } from '../src/types/participant.js';
+import { archetypeProfiles, sampleQuestions } from '../src/data/questions.js';
+import {
+    participantReportSchema,
+    participantSubmissionSchema
+} from '../src/types/participant.js';
+import { type Archetype, type QcmAnswer } from '../src/types/qcm.js';
+import { createReportPdf } from './report.js';
 
 const projectRoot = resolve(fileURLToPath(new URL('../../', import.meta.url)));
 const csvDirectory = resolve(projectRoot, 'csv');
@@ -15,19 +20,8 @@ const maxRequestSize = 16 * 1024;
 const csvFields = [
     ['Prénoms', 'firstName'],
     ['Nom', 'lastName'],
-    ['Sexe', 'gender'],
-    ['Nationalité', 'nationality'],
-    ['Téléphone principal', 'phone'],
-    ['Téléphone secondaire', 'secondaryPhone'],
-    ['Adresse e-mail', 'email'],
-    ['Situation matrimoniale', 'maritalStatus'],
-    ['Profession', 'profession'],
-    ['Tranche d’âge', 'ageRange'],
-    ['Situation patrimoniale', 'wealthRange'],
-    ['Objectifs de placement', 'investmentGoals'],
-    ['Tolérance au risque', 'riskTolerance'],
-    ['Expérience des marchés financiers', 'marketExperience'],
-    ['Fréquence d’investissement', 'investmentFrequency']
+    ['Téléphone', 'phone'],
+    ['Adresse e-mail', 'email']
 ] as const;
 
 function sendJson(response: ServerResponse, statusCode: number, body: unknown) {
@@ -63,6 +57,79 @@ async function readRequestBody(request: IncomingMessage): Promise<string | null>
     return tooLarge ? null : Buffer.concat(chunks).toString('utf8');
 }
 
+async function readJsonPayload(
+    request: IncomingMessage,
+    response: ServerResponse
+): Promise<unknown | null> {
+    if (request.method !== 'POST') {
+        sendJson(response, 405, { error: 'Méthode non autorisée.' });
+        return null;
+    }
+
+    if (!request.headers['content-type']?.includes('application/json')) {
+        sendJson(response, 415, { error: 'La requête doit être envoyée au format JSON.' });
+        return null;
+    }
+
+    const body = await readRequestBody(request);
+    if (body === null) {
+        sendJson(response, 413, { error: 'La requête envoyée est trop volumineuse.' });
+        return null;
+    }
+
+    try {
+        return JSON.parse(body) as unknown;
+    } catch {
+        sendJson(response, 400, { error: 'Le contenu de la requête est invalide.' });
+        return null;
+    }
+}
+
+function calculateReportScores(answers: QcmAnswer[]) {
+    const answerByQuestion = new Map(answers.map((answer) => [answer.questionId, answer.archetype]));
+    const validAnswers = answers.length === sampleQuestions.length
+        && answerByQuestion.size === sampleQuestions.length
+        && sampleQuestions.every((question) => {
+            const archetype = answerByQuestion.get(question.id);
+            return archetype !== undefined
+                && question.options.some((option) => option.archetype === archetype);
+        });
+
+    if (!validAnswers) {
+        return null;
+    }
+
+    const scores: Record<Archetype, number> = {
+        createur: 0,
+        visionnaire: 0,
+        passeur: 0,
+        continuateur: 0,
+        semeur: 0
+    };
+    const answerHistory = sampleQuestions.map((question) => {
+        const archetype = answerByQuestion.get(question.id)!;
+        const weight = question.weight ?? 1;
+        scores[archetype] += weight;
+        return { archetype, weight };
+    });
+    const highestScore = Math.max(...Object.values(scores));
+    const leadingArchetypes = Object.entries(scores)
+        .filter(([, score]) => score === highestScore)
+        .map(([archetype]) => archetype as Archetype);
+    const result = leadingArchetypes.length === 1
+        ? leadingArchetypes[0]
+        : [...answerHistory]
+            .sort((first, second) => second.weight - first.weight)
+            .find(({ archetype }) => leadingArchetypes.includes(archetype))?.archetype
+            ?? leadingArchetypes[0];
+
+    return {
+        result,
+        scores,
+        totalScore: Object.values(scores).reduce((total, score) => total + score, 0)
+    };
+}
+
 function csvCell(value: string) {
     const safeValue = /^[\s]*[=+\-@]/.test(value) ? `'${value}` : value;
     return `"${safeValue.replaceAll('"', '""')}"`;
@@ -73,30 +140,8 @@ function makeCsvRow(values: string[]) {
 }
 
 async function saveParticipant(request: IncomingMessage, response: ServerResponse) {
-    if (request.method !== 'POST') {
-        sendJson(response, 405, { error: 'Méthode non autorisée.' });
-        return;
-    }
-
-    if (!request.headers['content-type']?.includes('application/json')) {
-        sendJson(response, 415, { error: 'Le formulaire doit être envoyé au format JSON.' });
-        return;
-    }
-
-    const body = await readRequestBody(request);
-    if (body === null) {
-        sendJson(response, 413, { error: 'Le formulaire envoyé est trop volumineux.' });
-        return;
-    }
-
-    let payload: unknown;
-    try {
-        payload = JSON.parse(body);
-    } catch {
-        sendJson(response, 400, { error: 'Le contenu du formulaire est invalide.' });
-        return;
-    }
-
+    const payload = await readJsonPayload(request, response);
+    if (payload === null) return;
     const result = participantSubmissionSchema.safeParse(payload);
     if (!result.success) {
         sendJson(response, 400, {
@@ -109,32 +154,84 @@ async function saveParticipant(request: IncomingMessage, response: ServerRespons
         return;
     }
 
-    const { participant } = result.data;
+    const { submissionId, participant, result: submittedResult, answers } = result.data;
+    const reportScores = calculateReportScores(answers);
+    if (!reportScores) {
+        sendJson(response, 400, { error: 'Les réponses envoyées ne correspondent pas au diagnostic.' });
+        return;
+    }
+
+    if (submittedResult !== reportScores.result) {
+        sendJson(response, 400, { error: 'Le résultat envoyé ne correspond pas aux réponses du diagnostic.' });
+        return;
+    }
+
+    const profile = archetypeProfiles[reportScores.result];
     const values = csvFields.map(([, field]) => {
         const value = participant[field];
         return Array.isArray(value) ? value.join(', ') : value;
     });
-    const acceptedAt = new Date().toISOString();
-    const headers = [
-        ...csvFields.map(([label]) => label),
-        'CGU acceptées',
-        'Version des CGU',
-        'Date et heure d’acceptation'
-    ];
-    const row = [...values, 'Oui', result.data.termsVersion, acceptedAt];
+    const headers = [...csvFields.map(([label]) => label), 'Profil obtenu', 'Date et heure de participation'];
+    const row = [...values, profile.name, new Date().toISOString()];
     const contents = `\uFEFF${makeCsvRow(headers)}\r\n${makeCsvRow(row)}\r\n`;
-    const filePath = resolve(csvDirectory, `participant-${randomUUID()}.csv`);
+    const filePath = resolve(csvDirectory, `participant-${submissionId}.csv`);
 
     try {
         await mkdir(csvDirectory, { recursive: true, mode: 0o700 });
         await writeFile(filePath, contents, { encoding: 'utf8', flag: 'wx', mode: 0o600 });
     } catch (error) {
-        console.error('Unable to save participant CSV:', error);
-        sendJson(response, 500, { error: 'Impossible d’enregistrer le formulaire. Veuillez réessayer.' });
+        if (!(error instanceof Error && 'code' in error && error.code === 'EEXIST')) {
+            console.error('Unable to save participant CSV:', error);
+            sendJson(response, 500, { error: 'Impossible d’enregistrer le formulaire. Veuillez réessayer.' });
+            return;
+        }
+    }
+
+    sendJson(response, 201, { message: 'Diagnostic enregistré.' });
+}
+
+async function downloadParticipantReport(request: IncomingMessage, response: ServerResponse) {
+    const payload = await readJsonPayload(request, response);
+    if (payload === null) return;
+    const parsed = participantReportSchema.safeParse(payload);
+    if (!parsed.success) {
+        sendJson(response, 400, {
+            error: 'Les informations du bilan sont invalides.',
+            issues: parsed.error.issues.map(({ path, message }) => ({
+                field: path[0],
+                message
+            }))
+        });
         return;
     }
 
-    sendJson(response, 201, { message: 'Formulaire enregistré.' });
+    const reportScores = calculateReportScores(parsed.data.answers);
+    if (!reportScores) {
+        sendJson(response, 400, { error: 'Les réponses envoyées ne correspondent pas au diagnostic.' });
+        return;
+    }
+    if (parsed.data.result !== reportScores.result) {
+        sendJson(response, 400, { error: 'Le résultat envoyé ne correspond pas aux réponses du diagnostic.' });
+        return;
+    }
+
+    try {
+        const report = await createReportPdf({
+            ...parsed.data,
+            ...reportScores
+        });
+        response.writeHead(200, {
+            'Content-Type': 'application/pdf',
+            'Content-Disposition': 'attachment; filename="bilan-patrimonial-mansa-capital.pdf"',
+            'Content-Length': report.length,
+            'Cache-Control': 'no-store',
+            'X-Content-Type-Options': 'nosniff'
+        });
+        response.end(report);
+    } catch (error) {
+        console.error('Unable to generate participant PDF report:', error);
+        sendJson(response, 500, { error: 'Impossible de générer le bilan PDF. Veuillez réessayer.' });
+    }
 }
 
 const contentTypes: Record<string, string> = {
@@ -205,6 +302,11 @@ async function handleRequest(request: IncomingMessage, response: ServerResponse)
 
     if (pathname === '/api/participants') {
         await saveParticipant(request, response);
+        return;
+    }
+
+    if (pathname === '/api/reports') {
+        await downloadParticipantReport(request, response);
         return;
     }
 

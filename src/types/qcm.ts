@@ -13,11 +13,16 @@ export interface Question {
     weight?: number;
 }
 
+export interface QcmAnswer {
+    questionId: number;
+    archetype: Archetype;
+}
+
 export interface QcmState {
     questions: Question[];
     currentIndex: number;
     archetypeScores: Record<Archetype, number>;
-    answerHistory: { archetype: Archetype; weight: number }[];
+    answerHistory: (QcmAnswer & { weight: number })[];
     resultArchetype: Archetype | null;
     isFinished: boolean;
 }

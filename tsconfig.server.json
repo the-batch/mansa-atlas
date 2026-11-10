@@ -10,5 +10,5 @@
     "types": ["node"],
     "noEmitOnError": true
   },
-  "include": ["server/**/*.ts", "src/types/participant.ts"]
+  "include": ["server/**/*.ts", "src/types/participant.ts", "src/data/questions.ts", "src/types/qcm.ts"]
 }

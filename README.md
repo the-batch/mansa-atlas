@@ -10,6 +10,12 @@ Le serveur écoute sur le port `3000` par défaut. La variable d’environnement
 
 ## Fichiers des formulaires
 
-À la validation du profil et après acceptation des CGU, le serveur vérifie les données puis crée un fichier CSV unique dans le dossier `csv/` à la racine du projet. Seuls les prénoms, le nom et l’adresse e-mail sont obligatoires; les champs facultatifs non renseignés sont enregistrés comme cellules vides. Le questionnaire ne démarre qu’après l’enregistrement réussi. Ce dossier n’est pas servi par l’application et est exclu du contrôle de version.
+À la fin du diagnostic, le serveur vérifie les coordonnées et les réponses, puis crée un fichier CSV dans le dossier `csv/` à la racine du projet. Le fichier contient les prénoms, le nom, le numéro de téléphone, l’adresse e-mail, le profil obtenu et la date de participation. Les conditions générales d’utilisation sont consultables depuis le lien en pied de page. Ce dossier n’est pas servi par l’application et est exclu du contrôle de version.
 
-Les fichiers contiennent des données personnelles et patrimoniales. En production, utilisez un stockage serveur persistant et restreignez l’accès système au dossier `csv/`; ce répertoire doit être sauvegardé et géré selon la politique de conservation applicable.
+Les fichiers contiennent des coordonnées personnelles. En production, utilisez un stockage serveur persistant et restreignez l’accès système au dossier `csv/`; ce répertoire doit être sauvegardé et géré selon la politique de conservation applicable.
+
+## Bilan PDF
+
+Le téléchargement du bilan PDF depuis la page de résultat est désactivé pour le moment et sera réalisé ultérieurement. Le bilan prévu présentera le profil, la répartition des réponses par profil, des points d’appui et de vigilance, des pistes de réflexion et le détail des réponses.
+
+L’envoi du bilan par e-mail n’est pas encore activé. Le bilan sera un support de réflexion établi à partir des réponses déclaratives; il ne constituera pas un audit ni un conseil financier, fiscal, juridique ou en investissement.

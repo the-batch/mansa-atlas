@@ -52,7 +52,11 @@ export const useQcmStore = create<QcmStoreType>((set) => ({
             ...state.archetypeScores,
             [selectedArchetype]: state.archetypeScores[selectedArchetype] + weight
         };
-        const answerHistory = [...state.answerHistory, { archetype: selectedArchetype, weight }];
+        const answerHistory = [...state.answerHistory, {
+            questionId: currentQuestion.id,
+            archetype: selectedArchetype,
+            weight
+        }];
         const isLastQuestion = state.currentIndex + 1 >= state.questions.length;
 
         return {

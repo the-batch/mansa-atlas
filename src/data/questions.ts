@@ -1,4 +1,4 @@
-import { type Archetype, type Question } from '../types/qcm';
+import { type Archetype, type Question } from '../types/qcm.js';
 
 export const archetypeProfiles: Record<Archetype, { name: string; description: string; challenge: string; image: string }> = {
     createur: {

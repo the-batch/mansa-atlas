@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { AnimatePresence, LazyMotion, MotionConfig, domAnimation, m } from 'framer-motion'
 import Lenis from 'lenis'
 import './App.css'
@@ -8,7 +8,8 @@ import { ParticipantForm } from './components/ParticipantForm'
 import { QcmZustandApp } from './components/QcmZustandApp'
 import { TermsDialog } from './components/TermsDialog'
 import { archetypeProfiles } from './data/questions'
-import { termsVersion, type ParticipantDetails } from './types/participant'
+import { type ParticipantDetails, type ParticipantResult } from './types/participant'
+import { type QcmAnswer } from './types/qcm'
 import { type Archetype } from './types/qcm'
 
 const homeSlides: { archetype: Archetype; image: string }[] = [
@@ -23,7 +24,7 @@ function App() {
   const [hasStarted, setHasStarted] = useState(false)
   const [globeTexture, setGlobeTexture] = useState<HTMLImageElement | null>(null)
   const [participant, setParticipant] = useState<ParticipantDetails | null>(null)
-  const [pendingParticipant, setPendingParticipant] = useState<ParticipantDetails | null>(null)
+  const [isTermsOpen, setIsTermsOpen] = useState(false)
   const homeRef = useRef<HTMLElement>(null)
 
   useEffect(() => {
@@ -180,27 +181,31 @@ function App() {
     }
   }, [hasStarted])
 
-  const saveParticipantAndStartQuiz = async () => {
-    if (!pendingParticipant) return
+  const startQuiz = useCallback(async (details: ParticipantDetails) => {
+    setParticipant(details)
+  }, [])
+
+  const saveCompletedQuiz = useCallback(async (
+    details: ParticipantDetails,
+    archetype: ParticipantResult,
+    answers: QcmAnswer[],
+    submissionId: string
+  ) => {
     let response: Response
     try {
       response = await fetch('/api/participants', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          participant: pendingParticipant,
-          termsAccepted: true,
-          termsVersion
-        })
+        body: JSON.stringify({ submissionId, participant: details, result: archetype, answers })
       })
     } catch {
       throw new Error('Impossible de joindre le serveur. Vérifiez votre connexion puis réessayez.')
     }
 
     const responseText = await response.text()
-    let result: unknown
+    let responseBody: unknown
     try {
-      result = JSON.parse(responseText) as unknown
+      responseBody = JSON.parse(responseText) as unknown
     } catch {
       throw new Error(
         `Réponse inattendue du serveur (HTTP ${response.status}). Redémarrez l’application puis réessayez.`
@@ -208,18 +213,16 @@ function App() {
     }
 
     if (response.status !== 201) {
-      const errorMessage = typeof result === 'object' && result !== null && 'error' in result
-        && typeof result.error === 'string'
-        ? result.error
+      const errorMessage = typeof responseBody === 'object' && responseBody !== null && 'error' in responseBody
+        && typeof responseBody.error === 'string'
+        ? responseBody.error
         : undefined
       throw new Error(
-        errorMessage ?? `Le serveur n’a pas pu enregistrer le formulaire (HTTP ${response.status}).`
+        errorMessage ?? `Le serveur n’a pas pu enregistrer le diagnostic (HTTP ${response.status}).`
       )
     }
 
-    setParticipant(pendingParticipant)
-    setPendingParticipant(null)
-  }
+  }, [])
 
   return (
     <LazyMotion features={domAnimation}>
@@ -313,20 +316,31 @@ function App() {
               <div id="top" className="page-content">
                 <AnimatePresence mode="wait" initial={false}>
                   {participant
-                    ? <QcmZustandApp key="qcm" participant={participant} />
-                    : <ParticipantForm key="participant-form" onSubmit={setPendingParticipant} />}
+                    ? (
+                      <QcmZustandApp
+                        key="qcm"
+                        onComplete={saveCompletedQuiz}
+                        participant={participant}
+                      />
+                    )
+                    : <ParticipantForm key="participant-form" onSubmit={startQuiz} />}
                 </AnimatePresence>
               </div>
               <footer className="page-footer">
                 <span>MANSA CAPITAL <span className="footer-separator">/</span> L’ATLAS</span>
+                <a
+                  className="footer-terms-link"
+                  href="#conditions-utilisation"
+                  onClick={(event) => {
+                    event.preventDefault()
+                    setIsTermsOpen(true)
+                  }}
+                >
+                  Conditions générales d’utilisation
+                </a>
                 <span>PRENDRE DE LA HAUTEUR POUR MIEUX AVANCER</span>
               </footer>
-              {pendingParticipant && (
-                <TermsDialog
-                  onAccept={saveParticipantAndStartQuiz}
-                  onDecline={() => setPendingParticipant(null)}
-                />
-              )}
+              {isTermsOpen && <TermsDialog onClose={() => setIsTermsOpen(false)} />}
             </m.main>
           )}
         </AnimatePresence>

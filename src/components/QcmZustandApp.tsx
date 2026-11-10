@@ -1,25 +1,93 @@
-import React from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { m } from 'framer-motion';
 import { archetypeProfiles } from '../data/questions';
 import { useQcmStore } from '../store/qcmZustandStore';
-import { type ParticipantDetails } from '../types/participant';
+import { type ParticipantDetails, type ParticipantResult, type ParticipantSubmissionAnswer } from '../types/participant';
+
+const archetypePortraits: Record<ParticipantResult, string> = {
+    createur: '/createur.png',
+    visionnaire: '/visionnaire.png',
+    passeur: '/passeur.png',
+    continuateur: '/continuateur.png',
+    semeur: '/semeur.png'
+};
+
+const confettiPieces = Array.from({ length: 32 }, (_, index) => ({
+    left: `${(index * 37 + 5) % 100}%`,
+    delay: `${(index % 8) * 0.11}s`,
+    duration: `${2.8 + (index % 5) * 0.35}s`,
+    drift: `${((index * 19) % 160) - 80}px`,
+    color: ['#e8c77d', '#d97542', '#e9e2d4', '#91b5bd'][index % 4],
+    shape: index % 3 === 0 ? 'circle' : 'rectangle'
+}));
 
 interface QcmZustandAppProps {
     participant: ParticipantDetails;
+    onComplete: (
+        participant: ParticipantDetails,
+        result: ParticipantResult,
+        answers: ParticipantSubmissionAnswer[],
+        submissionId: string
+    ) => Promise<void>;
 }
 
-export const QcmZustandApp: React.FC<QcmZustandAppProps> = ({ participant }) => {
+export const QcmZustandApp: React.FC<QcmZustandAppProps> = ({ participant, onComplete }) => {
     const {
         questions,
         currentIndex,
         resultArchetype,
+        answerHistory,
         isFinished,
         submitAnswer,
         resetQuiz
     } = useQcmStore();
+    const [saveError, setSaveError] = useState('');
+    const [isSaving, setIsSaving] = useState(false);
+    const [savedResultState, setSavedResultState] = useState<ParticipantResult | null>(null);
+    const [submissionId, setSubmissionId] = useState(() => crypto.randomUUID());
+    const savedResult = useRef<ParticipantResult | null>(null);
+    const saveInProgress = useRef(false);
 
     const total = questions.length;
     const progressPercent = isFinished ? 100 : Math.round(((currentIndex + 1) / total) * 100);
+
+    const saveResult = useCallback(async (result: ParticipantResult) => {
+        if (saveInProgress.current) return;
+        saveInProgress.current = true;
+        setIsSaving(true);
+        setSaveError('');
+        try {
+            await onComplete(
+                participant,
+                result,
+                answerHistory.map(({ questionId, archetype }) => ({ questionId, archetype })),
+                submissionId
+            );
+            savedResult.current = result;
+            setSavedResultState(result);
+        } catch (error) {
+            setSaveError(error instanceof Error
+                ? error.message
+                : 'Impossible de préparer ou d’envoyer votre bilan. Veuillez réessayer.');
+        } finally {
+            saveInProgress.current = false;
+            setIsSaving(false);
+        }
+    }, [answerHistory, onComplete, participant, submissionId]);
+
+    useEffect(() => {
+        if (!isFinished || !resultArchetype) return;
+        if (savedResult.current === resultArchetype) return;
+        void saveResult(resultArchetype);
+    }, [isFinished, resultArchetype, saveResult]);
+
+    const handleResetQuiz = () => {
+        savedResult.current = null;
+        setSavedResultState(null);
+        setSaveError('');
+        setSubmissionId(crypto.randomUUID());
+        resetQuiz();
+    };
 
     if (isFinished && resultArchetype) {
         const profile = archetypeProfiles[resultArchetype];
@@ -33,36 +101,88 @@ export const QcmZustandApp: React.FC<QcmZustandAppProps> = ({ participant }) => 
                 transition={{ duration: 0.4, ease: 'easeOut' }}
                 aria-live="polite"
             >
-                <p className="eyebrow"><span className="eyebrow-line" /> VOTRE RÉSULTAT</p>
-                <div className="result-profile">
-                    <img className="result-image" src={profile.image} alt={`Illustration de l’archétype ${profile.name}`} />
-                    <div className="result-details">
-                        <div className="result-score" aria-label={`Archétype : ${profile.name}`}>
-                            <span>{profile.name}</span>
-                        </div>
-                        <h1 className="result-title">Votre archétype<span className="accent-period">.</span></h1>
+                <div aria-hidden="true" className="result-hero-background" />
+                <div aria-hidden="true" className="result-confetti">
+                    {confettiPieces.map((piece, index) => (
+                        <span
+                            className={`result-confetti-piece is-${piece.shape}`}
+                            key={index}
+                            style={{
+                                left: piece.left,
+                                backgroundColor: piece.color,
+                                animationDelay: piece.delay,
+                                animationDuration: piece.duration,
+                                '--confetti-drift': piece.drift
+                            } as React.CSSProperties}
+                        />
+                    ))}
+                </div>
+                <div className="result-content">
+                    <m.div
+                        animate={{ opacity: 1, x: 0, scale: 1 }}
+                        className="result-portrait"
+                        initial={{ opacity: 0, x: -44, scale: 0.92 }}
+                        transition={{ duration: 0.9, delay: 0.15, ease: [0.2, 0.8, 0.2, 1] }}
+                    >
+                        <img src={archetypePortraits[resultArchetype]} alt={`Portrait du profil ${profile.name}`} />
+                    </m.div>
+                    <m.div
+                        animate={{ opacity: 1, y: 0 }}
+                        className="result-details"
+                        initial={{ opacity: 0, y: 24 }}
+                        transition={{ duration: 0.7, delay: 0.4, ease: 'easeOut' }}
+                    >
+                        <p className="eyebrow"><span className="eyebrow-line" /> VOTRE RÉSULTAT</p>
+                        <p className="result-congratulations">Félicitations, {participant.firstName} !</p>
+                        <h1 className="result-score" aria-label={`Archétype : ${profile.name}`}>
+                            {profile.name}<span className="accent-period">.</span>
+                        </h1>
                         <p className="result-copy">{profile.description}</p>
                         <p className="result-copy">{profile.challenge}</p>
-                        <div className="report-offer">
-                            <p className="report-offer-title">Recevoir votre rapport complet</p>
-                            <p className="report-offer-copy">
-                                Une analyse plus détaillée pourra être envoyée à <strong>{participant.email}</strong>.
-                            </p>
-                            <button className="report-button" disabled type="button">
-                                Envoi par e-mail bientôt disponible
-                            </button>
+                        <div className="participant-submission-status" aria-live="polite">
+                            {isSaving && <p>Enregistrement de votre résultat…</p>}
+                            {!isSaving && !saveError && savedResultState === resultArchetype && (
+                                <p>Votre résultat a bien été enregistré.</p>
+                            )}
+                            {saveError && (
+                                <>
+                                    <p className="participant-submission-error" role="alert">{saveError}</p>
+                                    <button
+                                        className="participant-back"
+                                        disabled={isSaving}
+                                        onClick={() => void saveResult(resultArchetype)}
+                                        type="button"
+                                    >
+                                        Réessayer l’enregistrement
+                                    </button>
+                                </>
+                            )}
                         </div>
-                    </div>
+                    </m.div>
                 </div>
-                <m.button
-                    className="restart-button"
-                    onClick={resetQuiz}
-                    whileHover={{ y: -2 }}
-                    whileTap={{ scale: 0.985 }}
-                >
-                    <span>Recommencer le diagnostic</span>
-                    <span className="button-arrow" aria-hidden="true">↗</span>
-                </m.button>
+                <div className="result-actions">
+                    <m.button
+                        className="result-action"
+                        onClick={handleResetQuiz}
+                        whileHover={{ y: -2 }}
+                        whileTap={{ scale: 0.985 }}
+                    >
+                        <span>Recommencer le diagnostic</span>
+                        <span className="button-arrow" aria-hidden="true">→</span>
+                    </m.button>
+                    <button
+                        aria-describedby="report-download-status"
+                        className="result-action result-download-action"
+                        disabled
+                        type="button"
+                    >
+                        <span>Télécharger mon bilan PDF</span>
+                        <span className="button-arrow" aria-hidden="true">→</span>
+                        <span className="result-action-status" id="report-download-status">
+                            Bientôt disponible
+                        </span>
+                    </button>
+                </div>
             </m.section>
         );
     }

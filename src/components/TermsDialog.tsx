@@ -1,62 +1,23 @@
-import { useEffect, useRef, useState, type SyntheticEvent } from 'react';
-import { m } from 'framer-motion';
-import { termsVersion } from '../types/participant';
-
+import { useEffect, useRef } from 'react';
 interface TermsDialogProps {
-    onAccept: () => Promise<void>;
-    onDecline: () => void;
+    onClose: () => void;
 }
 
-export const TermsDialog = ({ onAccept, onDecline }: TermsDialogProps) => {
+export const TermsDialog = ({ onClose }: TermsDialogProps) => {
     const dialogRef = useRef<HTMLDialogElement>(null);
     const termsContentRef = useRef<HTMLDivElement>(null);
-    const [hasReadToEnd, setHasReadToEnd] = useState(false);
-    const [isAccepted, setIsAccepted] = useState(false);
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const [submissionError, setSubmissionError] = useState('');
 
     useEffect(() => {
         const dialog = dialogRef.current;
         if (!dialog) return;
 
         dialog.showModal();
-        const frame = window.requestAnimationFrame(() => {
-            const content = termsContentRef.current;
-            if (content) {
-                content.focus({ preventScroll: true });
-                if (content.scrollHeight <= content.clientHeight + 2) {
-                    setHasReadToEnd(true);
-                }
-            }
-        });
+        termsContentRef.current?.focus({ preventScroll: true });
 
         return () => {
-            window.cancelAnimationFrame(frame);
             if (dialog.open) dialog.close();
         };
     }, []);
-
-    const handleScroll = (event: SyntheticEvent<HTMLDivElement>) => {
-        const content = event.currentTarget;
-        if (content.scrollTop + content.clientHeight >= content.scrollHeight - 4) {
-            setHasReadToEnd(true);
-        }
-    };
-
-    const handleAccept = async () => {
-        setSubmissionError('');
-        setIsSubmitting(true);
-        try {
-            await onAccept();
-        } catch (error) {
-            setSubmissionError(
-                error instanceof Error
-                    ? error.message
-                    : 'Impossible d’enregistrer votre acceptation. Veuillez réessayer.'
-            );
-            setIsSubmitting(false);
-        }
-    };
 
     return (
         <dialog
@@ -64,19 +25,18 @@ export const TermsDialog = ({ onAccept, onDecline }: TermsDialogProps) => {
             className="terms-dialog"
             onCancel={(event) => {
                 event.preventDefault();
-                if (!isSubmitting) onDecline();
+                onClose();
             }}
             ref={dialogRef}
         >
             <div className="terms-dialog-header">
-                <p className="eyebrow"><span className="eyebrow-line" /> AVANT DE COMMENCER</p>
+                <p className="eyebrow"><span className="eyebrow-line" /> MANSA CAPITAL · L’ATLAS</p>
                 <h2 id="terms-title">Conditions générales d’utilisation<span className="accent-period">.</span></h2>
-                <p className="terms-version">Version du 21 octobre 2026 · {termsVersion}</p>
+                <p className="terms-version">Version du 10 novembre 2026</p>
             </div>
 
             <div
                 className="terms-dialog-content"
-                onScroll={handleScroll}
                 ref={termsContentRef}
                 tabIndex={0}
                 aria-label="Texte des conditions générales d’utilisation"
@@ -85,16 +45,15 @@ export const TermsDialog = ({ onAccept, onDecline }: TermsDialogProps) => {
                     <h3>1. Objet du service</h3>
                     <p>
                         L’Atlas, proposé par Mansa Capital, est un outil numérique de découverte de votre
-                        situation et de votre profil d’investisseur. En accédant au questionnaire, vous
-                        acceptez les présentes conditions.
+                        situation et de votre profil d’investisseur. Ces conditions décrivent les règles
+                        d’utilisation du service.
                     </p>
                 </section>
                 <section>
                     <h3>2. Utilisation du questionnaire</h3>
                     <p>
                         Vous vous engagez à fournir des informations exactes et à jour, et à utiliser le
-                        service de manière loyale. Les réponses facultatives peuvent être laissées vides.
-                        Vous pouvez interrompre votre parcours à tout moment avant d’accepter ces conditions.
+                        service de manière loyale. Vous pouvez interrompre votre parcours à tout moment.
                     </p>
                 </section>
                 <section>
@@ -115,19 +74,17 @@ export const TermsDialog = ({ onAccept, onDecline }: TermsDialogProps) => {
                 <section>
                     <h3>4. Données transmises</h3>
                     <p>
-                        Pour utiliser le service, vos prénoms, votre nom et votre adresse e-mail sont
-                        obligatoires. Les autres informations du formulaire sont facultatives. Après votre
-                        acceptation, les informations fournies sont transmises au serveur de l’application
-                        et enregistrées dans un fichier CSV individuel afin de traiter votre participation
-                        au diagnostic et d’assurer le suivi associé.
+                        Vos prénoms, votre nom, votre numéro de téléphone et votre adresse e-mail sont nécessaires pour utiliser le
+                        service. Ces coordonnées, y compris votre numéro de téléphone, sont transmises au
+                        serveur et enregistrées dans un fichier CSV individuel afin de traiter votre
+                        participation au diagnostic et d’assurer le suivi associé.
                     </p>
                     <p>
                         Les fichiers sont conservés sur le serveur et ne sont pas proposés au téléchargement
-                        dans l’interface de l’application. Ils contiennent des données personnelles et,
-                        lorsque vous les fournissez, des informations patrimoniales. Pour toute question
-                        ou demande concernant vos données, adressez-vous à Mansa Capital par ses canaux
-                        officiels. Leur traitement reste soumis aux règles de protection des données
-                        applicables.
+                        dans l’interface de l’application. Ils contiennent vos coordonnées personnelles.
+                        Pour toute question ou demande concernant vos données, adressez-vous à Mansa Capital
+                        par ses canaux officiels. Leur traitement reste soumis
+                        aux règles de protection des données applicables.
                     </p>
                 </section>
                 <section>
@@ -135,56 +92,16 @@ export const TermsDialog = ({ onAccept, onDecline }: TermsDialogProps) => {
                     <p>
                         Le service est fourni sous forme numérique et peut évoluer, être temporairement
                         indisponible ou être modifié pour maintenance ou amélioration. Mansa Capital peut
-                        mettre à jour ces conditions; une nouvelle acceptation sera demandée si nécessaire.
-                    </p>
-                </section>
-                <section>
-                    <h3>6. Acceptation</h3>
-                    <p>
-                        En cochant la case ci-dessous puis en poursuivant, vous confirmez avoir pu prendre
-                        connaissance des présentes conditions et les accepter. La version acceptée ainsi que
-                        la date et l’heure de votre acceptation sont enregistrées avec les informations
-                        transmises pour ce diagnostic.
+                        mettre à jour ces conditions. La version en vigueur reste consultable depuis le
+                        lien en pied de page.
                     </p>
                 </section>
             </div>
 
             <div className="terms-dialog-footer">
-                <p className="terms-read-hint" aria-live="polite">
-                    {hasReadToEnd
-                        ? 'Vous êtes arrivé(e) à la fin des conditions.'
-                        : 'Faites défiler les conditions jusqu’en bas pour pouvoir les accepter.'}
-                </p>
-                <label className={`terms-acceptance${!hasReadToEnd ? ' is-disabled' : ''}`}>
-                    <input
-                        checked={isAccepted}
-                        disabled={!hasReadToEnd || isSubmitting}
-                        onChange={(event) => setIsAccepted(event.target.checked)}
-                        type="checkbox"
-                    />
-                    <span>J’ai lu et j’accepte les conditions générales d’utilisation.</span>
-                </label>
-                {submissionError && <p className="terms-error" role="alert">{submissionError}</p>}
-                <div className="terms-actions">
-                    <button
-                        className="terms-decline"
-                        disabled={isSubmitting}
-                        onClick={onDecline}
-                        type="button"
-                    >
-                        Refuser et revenir au formulaire
-                    </button>
-                    <m.button
-                        className="restart-button terms-accept"
-                        disabled={!hasReadToEnd || !isAccepted || isSubmitting}
-                        onClick={handleAccept}
-                        type="button"
-                        whileHover={hasReadToEnd && isAccepted && !isSubmitting ? { y: -2 } : undefined}
-                        whileTap={hasReadToEnd && isAccepted && !isSubmitting ? { scale: 0.985 } : undefined}
-                    >
-                        {isSubmitting ? 'Enregistrement…' : 'Accepter et commencer'}
-                    </m.button>
-                </div>
+                <button className="terms-close" onClick={onClose} type="button">
+                    Fermer
+                </button>
             </div>
         </dialog>
     );
