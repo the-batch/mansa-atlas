@@ -1753,6 +1753,36 @@
 }
 
 @media (max-width: 640px) {
+  .home-hero {
+    touch-action: pan-y;
+  }
+
+  .home-artwork .home-slide {
+    transform: translateX(var(--slide-offset, 100%));
+    opacity: 0;
+    visibility: hidden;
+    transition:
+      transform 620ms cubic-bezier(0.22, 0.68, 0, 1),
+      opacity 420ms ease,
+      visibility 0s linear 620ms;
+  }
+
+  .home-artwork .home-slide.is-active,
+  .home-artwork .home-slide.is-exiting {
+    visibility: visible;
+    will-change: transform, opacity;
+    transition-delay: 0s;
+  }
+
+  .home-artwork .home-slide.is-active {
+    transform: translateX(0);
+    opacity: 1;
+  }
+
+  .home-artwork .home-slide.is-exiting {
+    transform: translateX(var(--slide-exit-offset));
+  }
+
   .result-confetti-piece:nth-child(n + 13) {
     display: none;
   }

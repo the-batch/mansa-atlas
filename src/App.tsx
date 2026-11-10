@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import {
+  type CSSProperties,
+  type PointerEvent as ReactPointerEvent,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState
+} from 'react'
 import { AnimatePresence, LazyMotion, MotionConfig, domAnimation, m } from 'framer-motion'
 import Lenis from 'lenis'
 import './App.css'
@@ -25,7 +33,31 @@ function App() {
   const [globeTexture, setGlobeTexture] = useState<HTMLImageElement | null>(null)
   const [participant, setParticipant] = useState<ParticipantDetails | null>(null)
   const [isTermsOpen, setIsTermsOpen] = useState(false)
+  const [activeHomeSlideIndex, setActiveHomeSlideIndex] = useState(0)
+  const [previousHomeSlideIndex, setPreviousHomeSlideIndex] = useState<number | null>(null)
+  const [homeSlideDirection, setHomeSlideDirection] = useState(1)
   const homeRef = useRef<HTMLElement>(null)
+  const homePointerStartX = useRef<number | null>(null)
+
+  const changeHomeSlide = useCallback((direction: number) => {
+    setPreviousHomeSlideIndex(activeHomeSlideIndex)
+    setHomeSlideDirection(direction)
+    setActiveHomeSlideIndex((activeHomeSlideIndex + direction + homeSlides.length) % homeSlides.length)
+  }, [activeHomeSlideIndex])
+
+  const handleHomePointerDown = (event: ReactPointerEvent<HTMLElement>) => {
+    if (event.pointerType === 'mouse' && event.button !== 0) return
+    if (event.target instanceof Element && event.target.closest('button, a')) return
+    homePointerStartX.current = event.clientX
+  }
+
+  const handleHomePointerUp = (event: ReactPointerEvent<HTMLElement>) => {
+    if (homePointerStartX.current === null) return
+    const distance = event.clientX - homePointerStartX.current
+    homePointerStartX.current = null
+    if (Math.abs(distance) < 40) return
+    changeHomeSlide(distance < 0 ? 1 : -1)
+  }
 
   useEffect(() => {
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)')
@@ -45,6 +77,15 @@ function App() {
       lenis?.destroy()
     }
   }, [])
+
+  useEffect(() => {
+    const isSmallScreen = window.matchMedia('(max-width: 640px)').matches
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    if (hasStarted || !isSmallScreen || reducedMotion) return
+
+    const timer = window.setInterval(() => changeHomeSlide(1), 6500)
+    return () => window.clearInterval(timer)
+  }, [activeHomeSlideIndex, changeHomeSlide, hasStarted])
 
   useLayoutEffect(() => {
     const isSmallScreen = window.matchMedia('(max-width: 640px)').matches
@@ -237,6 +278,9 @@ function App() {
               exit={{ opacity: 0, scale: 0.985 }}
               initial={{ opacity: 0 }}
               key="home"
+              onPointerCancel={() => { homePointerStartX.current = null }}
+              onPointerDown={handleHomePointerDown}
+              onPointerUp={handleHomePointerUp}
               ref={homeRef}
               transition={{ duration: 0.45, ease: 'easeInOut' }}
             >
@@ -264,8 +308,17 @@ function App() {
                   return (
                     <section
                       aria-label={profile.name}
-                      className="home-slide"
+                      aria-hidden={index !== activeHomeSlideIndex}
+                      className={[
+                        'home-slide',
+                        index === activeHomeSlideIndex ? 'is-active' : '',
+                        index === previousHomeSlideIndex ? 'is-exiting' : ''
+                      ].filter(Boolean).join(' ')}
                       key={archetype}
+                      style={{
+                        '--slide-offset': homeSlideDirection > 0 ? '100%' : '-100%',
+                        '--slide-exit-offset': homeSlideDirection > 0 ? '-100%' : '100%'
+                      } as CSSProperties}
                     >
                       <div className="home-slide-copy">
                         <span className="home-slide-index">
