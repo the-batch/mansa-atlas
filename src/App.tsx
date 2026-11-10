@@ -47,8 +47,10 @@ function App() {
   }, [])
 
   useLayoutEffect(() => {
+    const isSmallScreen = window.matchMedia('(max-width: 640px)').matches
     if (
       hasStarted ||
+      isSmallScreen ||
       !homeRef.current ||
       window.matchMedia('(prefers-reduced-motion: reduce)').matches
     ) return

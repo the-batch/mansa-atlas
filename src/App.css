@@ -229,8 +229,6 @@
   background: #050a1066;
   color: #f5efe5;
   box-shadow: 0 8px 28px #0003;
-  -webkit-backdrop-filter: blur(12px) saturate(125%);
-  backdrop-filter: blur(12px) saturate(125%);
   font-size: 13px;
   font-weight: 600;
   letter-spacing: 0.015em;
@@ -1609,8 +1607,6 @@
   background: #050a1066;
   color: #f5efe5;
   box-shadow: 0 8px 28px #0003;
-  -webkit-backdrop-filter: blur(12px) saturate(125%);
-  backdrop-filter: blur(12px) saturate(125%);
   cursor: pointer;
   font-size: 13px;
   font-weight: 600;
@@ -1757,6 +1753,10 @@
 }
 
 @media (max-width: 640px) {
+  .result-confetti-piece:nth-child(n + 13) {
+    display: none;
+  }
+
   .has-quiz .participant-fields {
     grid-template-columns: 1fr;
     gap: 16px;

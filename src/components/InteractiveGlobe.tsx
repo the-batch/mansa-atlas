@@ -95,6 +95,8 @@ export function InteractiveGlobe({ textureImage, decorative = false }: Interacti
         let tilt = 0;
         let lastFrame = 0;
         const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        const isSmallScreen = window.matchMedia('(max-width: 640px)').matches;
+        const frameInterval = 1000 / (isSmallScreen ? 30 : 60);
 
         try {
             vertex = createShader(gl, gl.VERTEX_SHADER, vertexShader);
@@ -143,7 +145,7 @@ export function InteractiveGlobe({ textureImage, decorative = false }: Interacti
             const resolutionLocation = gl.getUniformLocation(globeProgram, 'resolution');
 
             const draw = (time: number) => {
-                if (!reducedMotion && time - lastFrame < 1000 / 60) {
+                if (!reducedMotion && time - lastFrame < frameInterval) {
                     frameId = window.requestAnimationFrame(draw);
                     return;
                 }
@@ -162,7 +164,7 @@ export function InteractiveGlobe({ textureImage, decorative = false }: Interacti
             };
 
             const resizeObserver = new ResizeObserver(([entry]) => {
-                const pixelRatio = Math.min(window.devicePixelRatio || 1, 1.5);
+                const pixelRatio = Math.min(window.devicePixelRatio || 1, isSmallScreen ? 1 : 1.5);
                 canvas.width = Math.max(1, Math.round(entry.contentRect.width * pixelRatio));
                 canvas.height = Math.max(1, Math.round(entry.contentRect.height * pixelRatio));
                 gl.viewport(0, 0, canvas.width, canvas.height);
