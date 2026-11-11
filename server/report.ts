@@ -1,6 +1,10 @@
 import PDFDocument from 'pdfkit';
 import { archetypeProfiles, sampleQuestions } from '../src/data/questions.js';
-import { type ParticipantDetails, type ParticipantResult } from '../src/types/participant.js';
+import {
+    type FinancialProfile,
+    type ParticipantDetails,
+    type ParticipantResult
+} from '../src/types/participant.js';
 import { type Archetype, type QcmAnswer } from '../src/types/qcm.js';
 
 interface ReportFocus {
@@ -15,6 +19,7 @@ interface ReportInput {
     participant: ParticipantDetails;
     result: ParticipantResult;
     answers: QcmAnswer[];
+    financialProfile: FinancialProfile;
     scores: Record<Archetype, number>;
     totalScore: number;
 }
@@ -299,6 +304,18 @@ export function createReportPdf(input: ReportInput): Promise<Buffer> {
         addText(profile.description, { size: 11, gap: 6 });
         addText(profile.challenge, { size: 10, color: colors.muted, gap: 10 });
         addText(focus.overview, { gap: 14 });
+
+        addSection('Votre situation déclarée');
+        const financialProfileValues = [
+            ['Patrimoine financier estimé', input.financialProfile.wealthRange],
+            ['Objectifs de placement', input.financialProfile.investmentGoals.join(', ')],
+            ['Tolérance au risque', input.financialProfile.riskTolerance],
+            ['Expérience des marchés financiers', input.financialProfile.marketExperience],
+            ['Fréquence d’investissement envisagée', input.financialProfile.investmentFrequency]
+        ] as const;
+        for (const [label, value] of financialProfileValues) {
+            addText(`${label} : ${value || 'Non renseigné'}`, { size: 9, color: colors.muted, gap: 5 });
+        }
 
         addSection('Les tendances de vos réponses');
         addText(

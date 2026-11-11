@@ -16,6 +16,6 @@ Les fichiers contiennent des coordonnées personnelles. En production, utilisez 
 
 ## Bilan PDF
 
-Le téléchargement du bilan PDF depuis la page de résultat est désactivé pour le moment et sera réalisé ultérieurement. Le bilan prévu présentera le profil, la répartition des réponses par profil, des points d’appui et de vigilance, des pistes de réflexion et le détail des réponses.
+Depuis la page de résultat, le bouton du bilan ouvre un formulaire facultatif sur la situation patrimoniale et le profil d’investisseur. La validation du formulaire génère et télécharge le bilan PDF, puis ajoute ces réponses au CSV individuel. Si le formulaire est fermé sans téléchargement, le CSV de base reste inchangé.
 
 L’envoi du bilan par e-mail n’est pas encore activé. Le bilan sera un support de réflexion établi à partir des réponses déclaratives; il ne constituera pas un audit ni un conseil financier, fiscal, juridique ou en investissement.

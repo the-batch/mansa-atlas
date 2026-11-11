@@ -1,11 +1,14 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
-import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, rename, stat, unlink, writeFile } from 'node:fs/promises';
+import { randomUUID } from 'node:crypto';
 import { extname, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { archetypeProfiles, sampleQuestions } from '../src/data/questions.js';
 import {
     participantReportSchema,
-    participantSubmissionSchema
+    participantSubmissionSchema,
+    type FinancialProfile,
+    type ParticipantResult
 } from '../src/types/participant.js';
 import { type Archetype, type QcmAnswer } from '../src/types/qcm.js';
 import { createReportPdf } from './report.js';
@@ -23,6 +26,20 @@ const csvFields = [
     ['Téléphone', 'phone'],
     ['Adresse e-mail', 'email']
 ] as const;
+
+const reportCsvFields = [
+    ['Patrimoine financier estimé', 'wealthRange'],
+    ['Objectifs de placement', 'investmentGoals'],
+    ['Tolérance au risque', 'riskTolerance'],
+    ['Expérience des marchés financiers', 'marketExperience'],
+    ['Fréquence d’investissement envisagée', 'investmentFrequency']
+] as const satisfies readonly [string, keyof FinancialProfile][];
+
+const csvHeaders = [
+    ...csvFields.map(([label]) => label),
+    'Profil obtenu',
+    'Date et heure de participation'
+];
 
 function sendJson(response: ServerResponse, statusCode: number, body: unknown) {
     response.writeHead(statusCode, {
@@ -130,13 +147,110 @@ function calculateReportScores(answers: QcmAnswer[]) {
     };
 }
 
+function safeCsvValue(value: string) {
+    return /^[\s]*[=+\-@]/.test(value) ? `'${value}` : value;
+}
+
 function csvCell(value: string) {
-    const safeValue = /^[\s]*[=+\-@]/.test(value) ? `'${value}` : value;
+    const safeValue = safeCsvValue(value);
     return `"${safeValue.replaceAll('"', '""')}"`;
 }
 
 function makeCsvRow(values: string[]) {
     return values.map(csvCell).join(';');
+}
+
+function parseCsv(contents: string): string[][] {
+    const rows: string[][] = [];
+    let row: string[] = [];
+    let cell = '';
+    let inQuotes = false;
+
+    for (let index = 0; index < contents.length; index += 1) {
+        const character = contents[index];
+        if (inQuotes) {
+            if (character === '"' && contents[index + 1] === '"') {
+                cell += '"';
+                index += 1;
+            } else if (character === '"') {
+                inQuotes = false;
+            } else {
+                cell += character;
+            }
+        } else if (character === '"' && cell.length === 0) {
+            inQuotes = true;
+        } else if (character === ';') {
+            row.push(cell);
+            cell = '';
+        } else if (character === '\n') {
+            row.push(cell);
+            rows.push(row);
+            row = [];
+            cell = '';
+        } else if (character !== '\r') {
+            cell += character;
+        }
+    }
+
+    if (cell.length > 0 || row.length > 0) {
+        row.push(cell);
+        rows.push(row);
+    }
+    return rows;
+}
+
+async function updateParticipantCsv(
+    submissionId: string,
+    participant: { firstName: string; lastName: string; phone: string; email: string },
+    result: ParticipantResult,
+    financialProfile: FinancialProfile
+) {
+    const filePath = resolve(csvDirectory, `participant-${submissionId}.csv`);
+    const contents = await readFile(filePath, 'utf8');
+    const rows = parseCsv(contents.replace(/^\uFEFF/, ''));
+    const fullHeaders = [
+        ...csvHeaders,
+        ...reportCsvFields.map(([label]) => label)
+    ];
+    const baseValues = [
+        participant.firstName,
+        participant.lastName,
+        participant.phone,
+        participant.email,
+        archetypeProfiles[result].name
+    ];
+
+    if (
+        rows.length !== 2
+        || (rows[0].join('\0') !== csvHeaders.join('\0') && rows[0].join('\0') !== fullHeaders.join('\0'))
+        || rows[1].length !== rows[0].length
+        || baseValues.some((value, index) => rows[1][index] !== safeCsvValue(value))
+    ) {
+        throw new Error('Le fichier CSV du diagnostic est introuvable ou invalide.');
+    }
+
+    const profileValues = reportCsvFields.map(([, field]) => {
+        const value = financialProfile[field];
+        return Array.isArray(value) ? value.join(', ') : value;
+    });
+    const updatedContents = `\uFEFF${makeCsvRow(fullHeaders)}\r\n${makeCsvRow([
+        ...rows[1].slice(0, csvHeaders.length),
+        ...profileValues
+    ])}\r\n`;
+    const temporaryFilePath = resolve(csvDirectory, `.participant-${submissionId}-${randomUUID()}.tmp`);
+    try {
+        await writeFile(temporaryFilePath, updatedContents, { encoding: 'utf8', flag: 'wx', mode: 0o600 });
+        await rename(temporaryFilePath, filePath);
+    } catch (error) {
+        try {
+            await unlink(temporaryFilePath);
+        } catch (cleanupError) {
+            if (!(cleanupError instanceof Error && 'code' in cleanupError && cleanupError.code === 'ENOENT')) {
+                throw cleanupError;
+            }
+        }
+        throw error;
+    }
 }
 
 async function saveParticipant(request: IncomingMessage, response: ServerResponse) {
@@ -171,9 +285,8 @@ async function saveParticipant(request: IncomingMessage, response: ServerRespons
         const value = participant[field];
         return Array.isArray(value) ? value.join(', ') : value;
     });
-    const headers = [...csvFields.map(([label]) => label), 'Profil obtenu', 'Date et heure de participation'];
     const row = [...values, profile.name, new Date().toISOString()];
-    const contents = `\uFEFF${makeCsvRow(headers)}\r\n${makeCsvRow(row)}\r\n`;
+    const contents = `\uFEFF${makeCsvRow(csvHeaders)}\r\n${makeCsvRow(row)}\r\n`;
     const filePath = resolve(csvDirectory, `participant-${submissionId}.csv`);
 
     try {
@@ -220,6 +333,12 @@ async function downloadParticipantReport(request: IncomingMessage, response: Ser
             ...parsed.data,
             ...reportScores
         });
+        await updateParticipantCsv(
+            parsed.data.submissionId,
+            parsed.data.participant,
+            parsed.data.result,
+            parsed.data.financialProfile
+        );
         response.writeHead(200, {
             'Content-Type': 'application/pdf',
             'Content-Disposition': 'attachment; filename="bilan-patrimonial-mansa-capital.pdf"',
@@ -230,7 +349,9 @@ async function downloadParticipantReport(request: IncomingMessage, response: Ser
         response.end(report);
     } catch (error) {
         console.error('Unable to generate participant PDF report:', error);
-        sendJson(response, 500, { error: 'Impossible de générer le bilan PDF. Veuillez réessayer.' });
+        sendJson(response, 500, {
+            error: 'Impossible de préparer votre bilan et de mettre à jour vos informations. Veuillez réessayer.'
+        });
     }
 }
 

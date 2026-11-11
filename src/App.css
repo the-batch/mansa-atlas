@@ -1656,6 +1656,52 @@
   opacity: 0.78;
 }
 
+.has-quiz .result-download-action {
+  min-width: 260px;
+  min-height: 64px;
+  padding: 14px 18px 22px;
+  border: 1px solid #f1d89e;
+  border-radius: 6px;
+  background: linear-gradient(125deg, #f1d99f, #c4a765 72%, #b99451);
+  color: #17212b;
+  box-shadow: 0 12px 30px #0005, inset 0 1px #fff8;
+  font-size: 14px;
+  transition:
+    transform 280ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    box-shadow 280ms ease,
+    filter 280ms ease;
+}
+
+.has-quiz .result-download-action::after {
+  display: none;
+}
+
+.has-quiz .result-download-action:not(:disabled):hover,
+.has-quiz .result-download-action:not(:disabled):focus-visible {
+  border-color: #fff0c8;
+  background: linear-gradient(125deg, #f8e6bb, #d6bb7c 72%, #c4a15f);
+  color: #101923;
+  box-shadow: 0 16px 38px #0007, inset 0 1px #fff;
+  filter: saturate(1.08);
+  transform: translateY(-3px);
+}
+
+.result-download-action .button-arrow {
+  color: #17212b;
+  font-size: 22px;
+}
+
+.result-download-action .result-action-status {
+  right: auto;
+  bottom: 6px;
+  left: 18px;
+  color: #493919;
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
 .result-action-status {
   position: absolute;
   right: 0;
@@ -1666,6 +1712,97 @@
   font-weight: 400;
   letter-spacing: 0.08em;
   white-space: nowrap;
+}
+
+.has-quiz .financial-profile-dialog {
+  width: min(640px, calc(100vw - 32px));
+  max-width: none;
+  max-height: calc(100dvh - 32px);
+  margin: auto;
+  padding: clamp(22px, 4vw, 36px);
+  overflow-y: auto;
+  border: 1px solid #bca16999;
+  border-radius: 12px;
+  background: linear-gradient(145deg, #111e2b, #0b1520);
+  color: #f4eee3;
+  box-shadow: 0 24px 70px #0009;
+}
+
+.has-quiz .financial-profile-dialog::backdrop {
+  background: #02070cbb;
+  backdrop-filter: blur(5px);
+}
+
+.has-quiz .financial-profile-form .participant-fields {
+  margin-top: 24px;
+}
+
+.has-quiz .financial-profile-title {
+  margin: 20px 0 0;
+  color: #f4eee3;
+  font-size: clamp(26px, 5vw, 38px);
+  font-weight: 500;
+  line-height: 1.15;
+}
+
+.has-quiz .financial-profile-intro,
+.has-quiz .financial-profile-privacy {
+  color: #c9c0b1;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.has-quiz .financial-profile-intro {
+  margin: 12px 0 0;
+}
+
+.has-quiz .financial-profile-privacy {
+  margin: 20px 0 0;
+  color: #a8a69f;
+  font-size: 11px;
+}
+
+.has-quiz .financial-profile-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 22px;
+}
+
+.has-quiz .financial-profile-actions button {
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid #bca16999;
+  border-radius: 2px;
+  background: transparent;
+  color: #f4eee3;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.has-quiz .financial-profile-actions button:focus-visible {
+  outline: 2px solid #d7bd83;
+  outline-offset: 3px;
+}
+
+.has-quiz .financial-profile-actions .financial-profile-submit {
+  border-color: #d7bd83;
+  background: #bca169;
+  color: #111820;
+  font-weight: 600;
+}
+
+.has-quiz .financial-profile-actions button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.has-quiz .financial-profile-error {
+  margin: 18px 0 0;
+  color: #ffaaa0;
+  font-size: 13px;
+  line-height: 1.5;
 }
 
 @keyframes result-confetti-fall {

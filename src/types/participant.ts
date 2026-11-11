@@ -29,15 +29,50 @@ export const qcmAnswerSchema = z.object({
     questionId: z.number().int().positive(),
     archetype: participantResultSchema
 });
+export const financialProfileSchema = z.object({
+    wealthRange: z.enum([
+        '',
+        'Inférieure à 5 000 000 FCFA',
+        'Entre 5 000 000 et 15 000 000 FCFA',
+        'Supérieure à 15 000 000 et inférieure ou égale à 50 000 000 FCFA',
+        'Supérieure à 50 000 000 FCFA'
+    ]),
+    investmentGoals: z.array(z.enum([
+        'Revenus réguliers',
+        'Recherche de plus-values',
+        'Sécurité du capital',
+        'Liquidité'
+    ])).max(4),
+    riskTolerance: z.enum([
+        '',
+        'Faible',
+        'Modérée',
+        'Élevée'
+    ]),
+    marketExperience: z.enum([
+        '',
+        'Débutant(e)',
+        'Intermédiaire',
+        'Expérimenté(e)'
+    ]),
+    investmentFrequency: z.enum([
+        '',
+        'Ponctuelle',
+        'Mensuelle',
+        'Trimestrielle',
+        'Annuelle'
+    ])
+});
 export const participantReportSchema = z.object({
+    submissionId: z.uuid(),
     participant: participantSchema,
     result: participantResultSchema,
-    answers: z.array(qcmAnswerSchema).min(1).max(20)
+    answers: z.array(qcmAnswerSchema).min(1).max(20),
+    financialProfile: financialProfileSchema
 });
-export const participantSubmissionSchema = participantReportSchema.extend({
-    submissionId: z.uuid()
-});
+export const participantSubmissionSchema = participantReportSchema.omit({ financialProfile: true });
 
 export type ParticipantDetails = z.infer<typeof participantSchema>;
 export type ParticipantResult = z.infer<typeof participantResultSchema>;
 export type ParticipantSubmissionAnswer = QcmAnswer;
+export type FinancialProfile = z.infer<typeof financialProfileSchema>;
