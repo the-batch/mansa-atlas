@@ -226,6 +226,19 @@ function App() {
 
   const startQuiz = useCallback(async (details: ParticipantDetails) => {
     setParticipant(details)
+    void fetch('/api/leads', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(details)
+    }).then((response) => {
+      if (!response.ok) {
+        throw new Error(`L’enregistrement auprès du CRM a échoué (HTTP ${response.status}).`)
+      }
+    }).catch((error: unknown) => {
+      console.error(
+        error instanceof Error ? error.message : 'Impossible de transmettre les coordonnées au CRM.'
+      )
+    })
   }, [])
 
   const saveCompletedQuiz = useCallback(async (

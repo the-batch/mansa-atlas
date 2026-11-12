@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { archetypeProfiles, sampleQuestions } from '../src/data/questions.js';
 import {
     participantReportSchema,
+    participantSchema,
     participantSubmissionSchema,
     type FinancialProfile,
     type ParticipantResult
@@ -19,6 +20,7 @@ const distDirectory = resolve(projectRoot, 'dist');
 const isDevelopment = process.argv.includes('--dev');
 const port = Number(process.env.PORT ?? 3000);
 const maxRequestSize = 16 * 1024;
+const crmLeadCaptureUrl = 'https://crm.mansacapital.com/api/v1/LeadCapture/448f97e9312246cb5e3670ab55f0ca23';
 
 const csvFields = [
     ['Prénoms', 'firstName'],
@@ -355,6 +357,40 @@ async function downloadParticipantReport(request: IncomingMessage, response: Ser
     }
 }
 
+async function captureCrmLead(request: IncomingMessage, response: ServerResponse) {
+    const payload = await readJsonPayload(request, response);
+    if (payload === null) return;
+    const parsed = participantSchema.safeParse(payload);
+    if (!parsed.success) {
+        sendJson(response, 400, { error: 'Les coordonnées envoyées sont invalides.' });
+        return;
+    }
+
+    try {
+        const crmResponse = await fetch(crmLeadCaptureUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                firstName: parsed.data.firstName,
+                lastName: parsed.data.lastName,
+                emailAddress: parsed.data.email,
+                phoneNumber: parsed.data.phone
+            })
+        });
+
+        if (!crmResponse.ok) {
+            console.error(`CRM lead capture failed (HTTP ${crmResponse.status}).`);
+            sendJson(response, 502, { error: 'Le CRM n’a pas pu enregistrer les coordonnées.' });
+            return;
+        }
+
+        sendJson(response, 202, { message: 'Coordonnées transmises au CRM.' });
+    } catch (error) {
+        console.error('Unable to send participant details to CRM:', error);
+        sendJson(response, 502, { error: 'Impossible de joindre le CRM.' });
+    }
+}
+
 const contentTypes: Record<string, string> = {
     '.css': 'text/css; charset=utf-8',
     '.html': 'text/html; charset=utf-8',
@@ -423,6 +459,11 @@ async function handleRequest(request: IncomingMessage, response: ServerResponse)
 
     if (pathname === '/api/participants') {
         await saveParticipant(request, response);
+        return;
+    }
+
+    if (pathname === '/api/leads') {
+        await captureCrmLead(request, response);
         return;
     }
 
